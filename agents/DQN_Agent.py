@@ -6,6 +6,7 @@ import gym
 import os
 import time
 import pandas as pd
+from helpers.render_model import *
 
 class ReplayMemory():
     # this memory is required to save the transitions an later sample
@@ -116,7 +117,8 @@ class DQN_Agent():
 
         self.booking_keeping_df=None
         self.training_end_ep_index=None
-        
+        self.timestr=None
+        self.trained=False
         
 
     def save_transition(self, state, action, reward, new_state, done):
@@ -229,8 +231,11 @@ class DQN_Agent():
             if self.book_keeping['mean_rewards_per_ep'][-1] >= 210 and self.env_name=='LunarLander-v2':
                 print("\nMean Reward over last 100 ep more than 300")
                 break
+        print("\n Agent trained.....")    
+        self.trained=True
 
-        print("Saving Model info.....")    
+
+        print("\n Saving Model info.....")    
         self.save_training_info()    
         print("\n {} Problem took {} episodes".format(self.env_name,self.book_keeping['episodes']))
         # Get end episode number
@@ -238,8 +243,8 @@ class DQN_Agent():
 
     def save_training_info(self):
         
-        timestr = time.strftime("%Y%m%d-%H%M%S")
-        dir_path = os.path.join("DQN_trained_models", self.env_name ,"model_"+timestr)
+        self.timestr = time.strftime("%Y%m%d-%H%M%S")
+        dir_path = os.path.join("DQN_trained_models", self.env_name ,"model_"+self.timestr)
         os.makedirs(dir_path, exist_ok=True)
         model_path = os.path.join(dir_path, "model.h5")
 
@@ -252,7 +257,7 @@ class DQN_Agent():
                     index= np.arange(self.book_keeping['episodes']))
         file_path = os.path.join(dir_path, "book_keeping.csv")
         self.booking_keeping_df.to_csv(file_path, sep='\t')
-    
+                
         
         self.save_model(path=model_path)
 
@@ -270,5 +275,26 @@ class DQN_Agent():
 
         file_path = os.path.join(dir_path, "book_keeping.csv")
 
+        # also get the images 
+        images_path=os.path.join(dir_path, "IMAGES")
+        images_paths=[]
+        from os import listdir
+        from os.path import isfile, join
+        
+        onlyimgfiles = [f for f in listdir(images_path) if isfile(join(images_path, f))]
+        images_paths = [os.path.join(dir_path, "IMAGES" , f) for f in onlyimgfiles]
+        
+
         self.q_eval = keras.models.load_model(model_path)
-        return self.q_eval , pd.read_csv(file_path, sep='\t')
+        return self.q_eval , pd.read_csv(file_path, sep='\t') , images_paths
+        #####
+
+    def run_test_instances(self,case_list=None, model_=None):
+        
+        test_cases_data,image_paths= Rendering(env_name=self.env_name,
+                 model=model_,
+                 case_list=case_list,
+                 timestr=self.timestr 
+                 ).test_instances_of_env()
+        ###print(test_cases_data,image_paths)
+        return test_cases_data,image_paths
