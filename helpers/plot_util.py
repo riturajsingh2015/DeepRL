@@ -60,4 +60,5 @@ def learning_plot(arg):
 def plot_test_cases(df):
     df.plot.bar(rot=0,figsize=(12, 5))
 
+
     
