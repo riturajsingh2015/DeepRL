@@ -7,6 +7,7 @@ import os
 import time
 import pandas as pd
 from helpers.render_model import *
+from helpers.plot_util import *
 
 class ReplayMemory():
     # this memory is required to save the transitions an later sample

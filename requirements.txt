@@ -1,2 +1,9 @@
-pyglet
-ipywidgets==7.6.5
+gym 
+tensorflow
+pyvirtualdisplay 
+pyglet 
+box2d-py 
+atari_py 
+pystan
+pandas 
+PIL
