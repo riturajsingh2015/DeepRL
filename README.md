@@ -14,9 +14,78 @@ And the two control System Enviroments that we used in order to conduct our expe
 
 These two control systems simulation enviroments are offered by _OpenAI gym_ which is a toolkit for developing and comparing reinforcement learning algorithms. This toolkit supports teaching agents everything from walking to playing games like Pong or Pinball.
 
+## Background
 
-### Description about the Repository
+Deep Reinforcement Learning is a subsection in the field of Machine Learning and Artificial Intelligence.
+In which there is an Agent and an environment. The Agent takes Action on the environment and receives a reward. The Goal of the Agent is to learn from the environment in turn maximizing the rewards.
 
-These two control systems simulation enviroments are offered by _OpenAI gym_ which is a toolkit for developing and comparing reinforcement learning algorithms. This toolkit supports teaching agents everything from walking to playing games like Pong or Pinball.
+![Reinforcement Learning](https://h3abionet.github.io/H3ABioNet-ML-glossary/figures/RL.png)
+
+
+### Elements of Reinforcement Learning
+
+* Policy – describes Agent’s behavior at a given time
+* Reward – Goodness at a given time
+* Value function– Estimates Goodness in the long run
+* Goal of Agent – Maximize cumulative Rewards 
+
+## Motivation
+The motivation for this research include : 
+* Lack prior guidelines for choice of algorithm
+* How to apply these algorithms or policies on different environment?
+* Analyze which algorithm works better in a particular environment?
+* Judge Agents behavior
+* Mathematical insights of Algorithms
+
+## Problem Statement
+
+The problem statement for the research include
+setting up guidelines for the choice of algorithms
+two Reinforcement algorithms Deep Q Network which is a Tabular Method and uses Neural Network as Function Approximator
+and the second algorithms used in experiment was Policy Gradient which is an Approximation Method
+that Iterates over Policies to find the best
+this method also uses Neural Network as Function Approximator. The second major problem which we want to answer to Judge Agent’s behavior and learning performance over different experimental setup.
+
+## Experimental Setup
+### Cartpole-v1
+
+In the Cartpole-v1 environment there is a Pole which is attached by an un-actuated joint to a cart
+that moves along a frictionless track
+The goal of problem is to prevent Pole from Falling over 
+
+![Cartpole-v1](https://www.oreilly.com/library/view/hands-on-q-learning-with/9781789345803/assets/9170409d-15f1-453b-816a-6f601a89fcf2.png)
+
+
+
+**Environment specifications**
+* Actions space – 2 
+    * Left or Right
+* Observations space – 4
+* Reward - 1 points per step
+* Episode Termination
+    * Pole Angle > 15 deg
+    * Episode last more than 500 steps
+
+### LunarLander-v2
+In the LunarLander-v2 environment there is a vehicle that starts from the top of the screen.
+And there is a Landing pad that is always at coordinates (0,0).The goal of the problem is to  Land the vehicle on the target.
+
+![LunarLander-v2](https://miro.medium.com/max/1346/1*i7lxpgt2K3Q8lgEPJu3_xA.png)
+
+**Environment specifications**
+* Actions space – 4 
+    * Left or Right or Main Engine or Do Nothing
+* Observations space – 8
+
+* Rewards = 100....140 
+    * Ranging from the top of the  screen to landing pad
+* Episode Termination
+    * Lander crashes , rests
+    * Episode last more than 1000 steps
+
+
+## Description about the Repository
+
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
 
 
