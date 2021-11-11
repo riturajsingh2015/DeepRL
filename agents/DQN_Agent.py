@@ -226,11 +226,11 @@ class DQN_Agent():
                                                                                 self.book_keeping['rewards_per_ep'][-1],
                                                                                 self.book_keeping['mean_rewards_per_ep'][-1]), end="")
             
-            if self.book_keeping['mean_rewards_per_ep'][-1] >= 505 and self.env_name=="CartPole-v1":
-                print("\nMean Reward over last 100 ep more than 600")
+            if self.book_keeping['mean_rewards_per_ep'][-1] >= 500 and self.env_name=="CartPole-v1":
+                print("\nMean Reward over last 100 ep more than 500")
                 break
-            if self.book_keeping['mean_rewards_per_ep'][-1] >= 210 and self.env_name=='LunarLander-v2':
-                print("\nMean Reward over last 100 ep more than 300")
+            if self.book_keeping['mean_rewards_per_ep'][-1] >= 200 and self.env_name=='LunarLander-v2':
+                print("\nMean Reward over last 100 ep more than 200")
                 break
         print("\n Agent trained.....")    
         self.trained=True

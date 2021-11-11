@@ -7,6 +7,8 @@ import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
 import gym
+from helpers.render_model import *
+from helpers.plot_util import *
 
 class PG_Agent(object):
     def __init__(self,
