@@ -27,3 +27,5 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 RUN pip install gym tensorflow pyvirtualdisplay pyglet box2d-py atari_py pystan pandas
 RUN pip install --upgrade Pillow
 
+RUN apt-get install -y python-opengl
+
