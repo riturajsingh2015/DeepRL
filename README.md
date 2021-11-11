@@ -20,6 +20,7 @@ Deep Reinforcement Learning is a subsection in the field of Machine Learning and
 In which there is an Agent and an environment. The Agent takes Action on the environment and receives a reward. The Goal of the Agent is to learn from the environment in turn maximizing the rewards.
 
 ![Reinforcement Learning](https://h3abionet.github.io/H3ABioNet-ML-glossary/figures/RL.png)
+*Fig. 1: This Photo by Unknown Author is licensed under CC BY-SA-NC*
 
 
 ### Elements of Reinforcement Learning
@@ -54,13 +55,17 @@ that moves along a frictionless track
 The goal of problem is to prevent Pole from Falling over 
 
 ![Cartpole-v1](https://www.oreilly.com/library/view/hands-on-q-learning-with/9781789345803/assets/9170409d-15f1-453b-816a-6f601a89fcf2.png)
-
+*Fig. 2: This Photo was taken from oreilly.com*
 
 
 **Environment specifications**
 * Actions space – 2 
     * Left or Right
 * Observations space – 4
+    * Cart Position
+    * Cart Velocity
+    * Pole Angle
+    * Pole Angular Velocity
 * Reward - 1 points per step
 * Episode Termination
     * Pole Angle > 15 deg
@@ -71,18 +76,46 @@ In the LunarLander-v2 environment there is a vehicle that starts from the top of
 And there is a Landing pad that is always at coordinates (0,0).The goal of the problem is to  Land the vehicle on the target.
 
 ![LunarLander-v2](https://miro.medium.com/max/1346/1*i7lxpgt2K3Q8lgEPJu3_xA.png)
+*Fig. 3: This Photo was taken from miro.medium.com*
 
 **Environment specifications**
 * Actions space – 4 
     * Left or Right or Main Engine or Do Nothing
 * Observations space – 8
+    * x coordinate of the lander
+    * y coordinate of the lander
+    * vx, the horizontal velocity
+    * vy, the vertical velocity
+    * θ, the orientation in space
+    * vθ, the angular velocity
+    * Left leg touching the ground (Boolean)
+    * Right leg touching the ground (Boolean)
 
 * Rewards = 100....140 
     * Ranging from the top of the  screen to landing pad
 * Episode Termination
-    * Lander crashes , rests
+    * If Lander crashes or comes to rest on the landing pad. Receiving an additional -100 or +100 points.
     * Episode last more than 1000 steps
 
+### Evalution Criteria for the Experiment
+To Evaluate our experiment we will have the following performance metrics for our Agent consisting of - 
+* Episodes required for sufficient training
+* Average Steps to solve the problem
+* Agent‘s Goodness to achieve the target which will Capture agent‘s Behaviour 
+    * On multiple test instances of the environment
+
+## Deep Q Network (Working Mechanism)
+
+![DQN_Algo](https://drek4537l1klr.cloudfront.net/zai/Figures/03fig13_alt.jpg)
+*Fig. 4: This Photo was taken from manning.com*
+
+For the implementation of DQN, the agent uses a Q -Network which can be a Neural Network with multiple layers and a Replay Memory which stores the transition information consisting of the current state , the action taken , the new state and the reward which we get.
+At every timestamp the agent takes an action on the environment based on the epsilon-greedy method and stores and transitions into the replay buffer as described.
+Then it samples a subset of information from this replay memory to train the Q-network inturn reducing the loss function of the network. We repeat this setup for a number of episodes until the agent is sufficiently trained showing an increase in its cumulative rewards.
+
+
+## Reinforce Policy Gradient
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXxXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
 
 ## Description about the Repository
 
