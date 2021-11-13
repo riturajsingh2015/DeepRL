@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-import numpy as np
 import gym
 import os
 import time
@@ -80,12 +79,9 @@ class DQN_Agent():
         
         self.n_actions = self.env.action_space.n
         self.input_dims = self.env.observation_space.shape
-        
-        #<------------> Reproduce Seed       <-----------> 
-    
         self.action_space = [i for i in range(self.n_actions)]
-        self.gamma = gamma
-        
+
+        self.gamma = gamma        
         self.epsilon = epsilon
         self.eps_dec = epsilon_dec
         self.eps_min = epsilon_end
@@ -97,6 +93,7 @@ class DQN_Agent():
         self.memory = ReplayMemory(mem_size, self.input_dims)
         #self.q_eval = create_dqn_nn_4(lr, self.n_actions, self.input_dims)
         
+        # Model related stuff
         self.fc1_dims = layer1_size
         self.fc2_dims = layer2_size
         
@@ -219,7 +216,7 @@ class DQN_Agent():
             self.book_keeping['steps_per_ep'].append(ep_steps)
             self.book_keeping['eps_history'].append(self.epsilon)
             
-            print("\rEps: {} ,  Eps steps: {} ,Epsilon: {:.2f}, Ep_Reward : {:.2f} , Average_Reward : {:.2f}".format(
+            print("\rEp: {} ,  Ep_Steps: {} ,Epsilon: {:.2f}, Ep_Reward : {:.2f} , Average_Reward : {:.2f}".format(
                                                                                 self.book_keeping['episodes'],
                                                                                 self.book_keeping['steps_per_ep'][-1],                                     
                                                                                 self.book_keeping['eps_history'][-1],
@@ -239,7 +236,7 @@ class DQN_Agent():
         print("\n Saving Model info.....")    
         self.save_training_info()    
         print("\n {} Problem took {} episodes".format(self.env_name,self.book_keeping['episodes']))
-        # Get end episode number
+        # Get end episode number #
 
 
     def save_training_info(self):

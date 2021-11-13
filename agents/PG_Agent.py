@@ -1,14 +1,16 @@
-import tensorflow.keras as keras
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras.layers import Dense , Activation, Input
-
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.optimizers import Adam
 import tensorflow.keras.backend as K
-import tensorflow as tf
-import numpy as np
+import os
+import time
+import pandas as pd
 import gym
 from helpers.render_model import *
-from helpers.plot_util import *
+#from helpers.plot_util import *
 
 class PG_Agent(object):
     def __init__(self,
@@ -17,7 +19,7 @@ class PG_Agent(object):
                  GAMMA=0.99,
                  layer1_size=16, 
                  layer2_size=16,
-                 fname='reinforce.h5',
+                 #fname='reinforce.h5',
                  reproduce_seed=None
                 ):
         
@@ -34,33 +36,42 @@ class PG_Agent(object):
             self.env.seed(self.reproduce_seed)
             ## GLOBAL SEED ##  
         
-        self.input_dims = self.env.observation_space.shape[0]#input_dims
         self.n_actions = self.env.action_space.n#n_actions
-        #print(self.input_dims ,"      ", self.n_actions)
+        self.input_dims = self.env.observation_space.shape[0]#input_dims
+        self.action_space = [i for i in range(self.n_actions)]
+        
         
         self.gamma = GAMMA
         self.lr = ALPHA
         self.G = 0
         
+        # Model related stuff
         self.fc1_dims = layer1_size
         self.fc2_dims = layer2_size
         
+
+        self.policy, self.predict = self.build_policy_network()
+
+        # Memory related
         self.state_memory = []
         self.action_memory = []
         self.reward_memory = []
-        self.policy, self.predict = self.build_policy_network()
-        self.action_space = [i for i in range(self.n_actions)]
-        
-        
-        self.model_file = fname
-        
-        self.rewards_per_ep = []
-        self.mean_rewards_per_ep=[]
-        self.steps_per_ep=[]
-        self.losses=[]
+
+        ##  book-keeping dict ## 
+        self.book_keeping = {
+        'episodes': None,
+        'rewards_per_ep': [],
+        'mean_rewards_per_ep': [],
+        'steps_per_ep': [],
+        'loss': []   
+        }
+
+        self.booking_keeping_df=None
         self.training_end_ep_index=None
-    
-    
+        self.timestr=None
+        self.trained=False
+        
+        #self.model_file = fname
     
 
     def build_policy_network(self):
@@ -81,7 +92,7 @@ class PG_Agent(object):
 
         policy = Model(inputs=[input_, advantages], outputs=[probs])
 
-        policy.compile(optimizer=Adam(lr=self.lr), loss=custom_loss)
+        policy.compile(optimizer=Adam(learning_rate=self.lr), loss=custom_loss)
 
         predict = Model(inputs=[input_], outputs=[probs])
 
@@ -145,30 +156,102 @@ class PG_Agent(object):
                 ep_steps+=1
             
             
-            cost=self.learn()
+            loss=self.learn()
+            self.book_keeping['episodes']=ep+1
+            self.book_keeping['rewards_per_ep'].append(ep_reward)
+            mean_reward = np.mean(self.book_keeping['rewards_per_ep'][-100:])
+            self.book_keeping['mean_rewards_per_ep'].append(mean_reward)
+            self.book_keeping['steps_per_ep'].append(ep_steps)
+            self.book_keeping['loss'].append(loss)
             
-            self.rewards_per_ep.append(ep_reward)                        
-            mean_reward = np.mean(self.rewards_per_ep[-100:])
-            self.mean_rewards_per_ep.append(mean_reward)
-            self.steps_per_ep.append(ep_steps)
-            self.losses.append(cost)
-            print("\rEps: {} ,  Eps steps: {} , Ep_Reward : {:.2f} , Avg_Reward : {:.2f} , Loss: {:.2f}".format(ep,
-                                                                                self.steps_per_ep[-1],                                     
-                                                                                self.rewards_per_ep[-1],
-                                                                                self.mean_rewards_per_ep[-1],
-                                                                                self.losses[-1]), end="")
+            print("\rEp: {} , Ep_Steps: {} , Ep_Reward : {:.2f} , Avg_Reward : {:.2f} , Loss: {:.2f}".format(
+                                                                                self.book_keeping['episodes'],
+                                                                                self.book_keeping['steps_per_ep'][-1],                                     
+                                                                                self.book_keeping['rewards_per_ep'][-1],
+                                                                                self.book_keeping['mean_rewards_per_ep'][-1],
+                                                                                self.book_keeping['loss'][-1]), end="")
             
-            self.training_end_ep_index=ep
-            if self.mean_rewards_per_ep[-1] >= 500 and self.env_name=="CartPole-v1":
+            if self.book_keeping['mean_rewards_per_ep'][-1] >= 500 and self.env_name=="CartPole-v1":
                 print("\nMean Reward over last 100 ep more than 500")
                 break
-            if self.mean_rewards_per_ep[-1] >= 200 and self.env_name=='LunarLander-v2':
+            if self.book_keeping['mean_rewards_per_ep'][-1] >= 200 and self.env_name=='LunarLander-v2':
                 print("\nMean Reward over last 100 ep more than 200")
                 break
-            
-        print("\n {} Problem took {} episodes".format(self.env_name,self.training_end_ep_index+1))
+        print("\n Agent trained.....")    
+        self.trained=True
 
-    
+
+        print("\n Saving Model info.....")    
+        self.save_training_info()    
+        print("\n {} Problem took {} episodes".format(self.env_name,self.book_keeping['episodes']))
+        # Get end episode number
+
+
+    def save_training_info(self):
+        
+        self.timestr = time.strftime("%Y%m%d-%H%M%S")
+        dir_path = os.path.join("PG_trained_models", self.env_name ,"model_"+self.timestr)
+        os.makedirs(dir_path, exist_ok=True)
+        model_path = os.path.join(dir_path, "model.h5")
+
+        self.booking_keeping_df = pd.DataFrame({
+                    'Rewards': self.book_keeping['rewards_per_ep'],
+                    'Avg_Rewards': self.book_keeping['mean_rewards_per_ep'],
+                    'Loss': self.book_keeping['loss'],
+                    'Steps': self.book_keeping['steps_per_ep']
+                    }, 
+                    index= np.arange(self.book_keeping['episodes']))
+        file_path = os.path.join(dir_path, "book_keeping.csv")
+        self.booking_keeping_df.to_csv(file_path, sep='\t')                
+        
+        self.save_model(path=model_path)
+
+    #def plot_learning_curves(self):
+    #    PG_learning_plot(self.book_keeping)
+
+    def save_model(self,path=None):
+        self.predict.save_weights(path)
+
+    def get_trained_model_info(self):
+        return self.predict , self.booking_keeping_df
+
+    def load_pre_trained_model_info(self,timestr=None):
+        dir_path = os.path.join("PG_trained_models", self.env_name ,"model_"+timestr)
+        model_path = os.path.join(dir_path, "model.h5")
+
+        file_path = os.path.join(dir_path, "book_keeping.csv")
+
+        # also get the images
+        images_path=os.path.join(dir_path, "IMAGES")
+        images_paths=[]
+        from os import listdir
+        from os.path import isfile, join
+        
+        onlyimgfiles = [f for f in listdir(images_path) if isfile(join(images_path, f))]
+        images_paths = [os.path.join(dir_path, "IMAGES" , f) for f in onlyimgfiles]
+        
+        _,self.predict=self.build_policy_network()
+        self.predict.load_weights(model_path) #= keras.models.load_model(model_path)
+        return self.predict , pd.read_csv(file_path, sep='\t') , images_paths
+
+
+    def run_test_instances(self,case_list=None, model_=None):        
+        test_cases_data,image_paths= Rendering(env_name=self.env_name,
+                 model=model_,
+                 case_list=case_list,
+                 timestr=self.timestr 
+                 ).test_instances_of_env()
+        ###print(test_cases_data,image_paths)
+        return test_cases_data,image_paths
+
+
+
+
+
+
+
+##______________________________________######
+'''
     def get_stats(self):
         num_episodes=self.training_end_ep_index+1
         return num_episodes,self.rewards_per_ep,self.mean_rewards_per_ep,self.steps_per_ep,self.losses   
@@ -190,3 +273,5 @@ class PG_Agent(object):
         if self.env_name=='LunarLander-v2':
             x = model_predict
         return x
+
+'''
