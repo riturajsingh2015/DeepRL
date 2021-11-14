@@ -1,10 +1,11 @@
 # docker build the image when you are in our 
-docker build --tag deep_notebook .
-docker tag deep_notebook riturajsingh2015/deep_notebook:v1.0
-docker push riturajsingh2015/deep_notebook:v1.0
+docker build --tag deep_rl:v1.0 .
+docker tag deep_rl:v1.0 riturajsingh2015/deep_rl:v1.0
+docker push riturajsingh2015/deep_rl:v1.0
 
 #pulling the image
-docker pull riturajsingh2015/deep_notebook:v1.0
+docker pull riturajsingh2015/deep_rl:v1.0
 
 #run the container
-docker run --name deep_rl -p 8888:8888 deep_notebook:v1.0
+docker run --name deep_rl -d -p 8888:8888 deep_rl:v1.0
+# Running this wnt show any output onto the terminal

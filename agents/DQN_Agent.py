@@ -67,6 +67,7 @@ class DQN_Agent():
         self.env = gym.make(self.env_name)
         self.reproduce_seed=reproduce_seed        
         tf.compat.v1.disable_eager_execution() 
+        tf.python.util.deprecation._PRINT_DEPRECATION_WARNINGS = False
         if self.reproduce_seed is not None:
             ## GLOBAL SEED ##  
             #print("setting global seed {}".format(self.reproduce_seed))
