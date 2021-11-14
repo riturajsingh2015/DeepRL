@@ -1,9 +1,9 @@
-gym 
-tensorflow
-pyvirtualdisplay 
-pyglet 
-box2d-py 
-atari_py 
+gym
+pyvirtualdisplay
+pyglet
+box2d-py
+atari_py
 pystan
-pandas 
-PIL
+Pillow
+ipywidgets==7.6.5 
+jupyter_contrib_nbextensions
