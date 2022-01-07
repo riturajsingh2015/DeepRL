@@ -8,57 +8,80 @@ import pandas as pd
 from helpers.render_model import *
 from helpers.plot_util import *
 
+
+'''
+*****Notations used *********
+Learning rate - alpha (α), 
+Discount factor - gamma (γ), 
+Batch-size - B, 
+Maximum Capacity of ReplayMemory- C 
+ReplayMemory - D
+Q-function or Q-Network = Q
+Number of Hidden layers in the Q-Network = 2
+Number of neurons in layer 1 = layer1_size
+Number of neurons in layer 2 = layer2_size
+
+S=current state
+S_new=new state
+A=action
+R=reward
+
+
+'''
+
+
 class ReplayMemory():
     # this memory is required to save the transitions an later sample
     # transitions to reduce the network losses
-    def __init__(self, max_size, input_dims):
-        self.mem_size = max_size
-        self.mem_cntr = 0
+    def __init__(self, max_capacity, state_space):
+        self.C = max_capacity
 
-        self.state_memory = np.zeros((self.mem_size, *input_dims), 
-                                    dtype=np.float32)
-        self.new_state_memory = np.zeros((self.mem_size, *input_dims),
-                                dtype=np.float32)
-        self.action_memory = np.zeros(self.mem_size, dtype=np.int32)
-        self.reward_memory = np.zeros(self.mem_size, dtype=np.float32)
-        self.terminal_memory = np.zeros(self.mem_size, dtype=np.int32)
+        self.C_counter = 0
 
-    def save_transition(self, state, action, reward, state_, done):
-        index = self.mem_cntr % self.mem_size
-        self.state_memory[index] = state
-        self.new_state_memory[index] = state_
-        self.reward_memory[index] = reward
-        self.action_memory[index] = action
-        self.terminal_memory[index] = 1 - int(done)
-        self.mem_cntr += 1
+        self.Memory_dict = {
+        'states': np.zeros((self.C, state_space),dtype=np.float32),
+        'new_states': np.zeros((self.C, state_space),dtype=np.float32),
+        'actions': np.zeros(self.C, dtype=np.int32),
+        'rewards': np.zeros(self.C, dtype=np.float32),
+        'terminals': np.zeros(self.C, dtype=np.int32)
+             
+        }
+        
+    def save_transition(self, S, A, R, S_new, done):
+        index = self.C_counter % self.C
+        self.Memory_dict['states'][index] = S
+        self.Memory_dict['new_states'][index] = S_new
+        self.Memory_dict['rewards'][index] = R
+        self.Memory_dict['actions'][index] = A
+        self.Memory_dict['terminals'][index] = 1 - int(done)
+        self.C_counter += 1
 
-    def sample_buffer(self, batch_size):
-        max_mem = min(self.mem_cntr, self.mem_size)
-        batch = np.random.choice(max_mem, batch_size, replace=False)
+    def sample_mini_batch(self, B):
+        max_mem = min(self.C_counter, self.C)
+        batch = np.random.choice(max_mem, B, replace=False)
 
-        states = self.state_memory[batch]
-        states_ = self.new_state_memory[batch]
-        rewards = self.reward_memory[batch]
-        actions = self.action_memory[batch]
-        terminal = self.terminal_memory[batch]
+        S_js = self.Memory_dict['states'][batch]
+        S_nexts = self.Memory_dict['new_states'][batch]
+        R_js = self.Memory_dict['rewards'][batch]
+        A_js = self.Memory_dict['actions'][batch]
+        terminal = self.Memory_dict['terminals'][batch]
 
-        return states, actions, rewards, states_, terminal
+        return S_js, A_js,  R_js,  S_nexts, terminal
 
 
 
 class DQN_Agent():
     def __init__(self, 
-                 lr=0.001, 
+                 alpha=0.001, 
                  env_name="CartPole-v1",                 
                  gamma=0.98, 
                  epsilon=1.0, 
-                 batch_size=64,
+                 B=64,
                  epsilon_dec=1e-3, 
                  epsilon_end=0.01,
-                 mem_size=1000000,
+                 C=1000000,
                  layer1_size=128, 
                  layer2_size=64, 
-                 fname='dqn_model.h5',
                  reproduce_seed=None
                 ):
         
@@ -67,10 +90,8 @@ class DQN_Agent():
         self.env = gym.make(self.env_name)
         self.reproduce_seed=reproduce_seed        
         tf.compat.v1.disable_eager_execution() 
-        tf.python.util.deprecation._PRINT_DEPRECATION_WARNINGS = False
         if self.reproduce_seed is not None:
             ## GLOBAL SEED ##  
-            #print("setting global seed {}".format(self.reproduce_seed))
             np.random.seed(self.reproduce_seed)
             tf.random.set_seed(self.reproduce_seed)
             self.env.seed(self.reproduce_seed)
@@ -78,31 +99,31 @@ class DQN_Agent():
         
         
         
-        self.n_actions = self.env.action_space.n
-        self.input_dims = self.env.observation_space.shape
-        self.action_space = [i for i in range(self.n_actions)]
+        self.num_actions = self.env.action_space.n
+        self.state_space = self.env.observation_space.shape[0]
+        self.action_space = [i for i in range(self.num_actions)]
 
         self.gamma = gamma        
         self.epsilon = epsilon
         self.eps_dec = epsilon_dec
         self.eps_min = epsilon_end
         
-        self.batch_size = batch_size
-        self.model_file = fname
+        self.B = B
+
         
         ##  Replay Memory ## 
-        self.memory = ReplayMemory(mem_size, self.input_dims)
-        #self.q_eval = create_dqn_nn_4(lr, self.n_actions, self.input_dims)
+        self.D = ReplayMemory(C, self.state_space)
+
         
         # Model related stuff
-        self.fc1_dims = layer1_size
-        self.fc2_dims = layer2_size
+        self.layer1_size = layer1_size
+        self.layer2_size = layer2_size
         
-        self.q_eval = keras.Sequential([
-        keras.layers.Dense(self.fc1_dims, activation='relu'),
-        keras.layers.Dense(self.fc2_dims, activation='relu'),
-        keras.layers.Dense(self.n_actions, activation=None)])
-        self.q_eval.compile(optimizer=keras.optimizers.Adam(learning_rate=lr), loss='mean_squared_error')
+        self.Q = keras.Sequential([
+        keras.layers.Dense(self.layer1_size, activation=tf.nn.relu),
+        keras.layers.Dense(self.layer2_size, activation=tf.nn.relu),
+        keras.layers.Dense(self.num_actions, activation=None)])
+        self.Q.compile(optimizer=keras.optimizers.Adam(learning_rate=alpha), loss=tf.keras.losses.MeanSquaredError())
         
         ##  book-keeping ## 
         self.book_keeping = {
@@ -119,20 +140,17 @@ class DQN_Agent():
         self.timestr=None
         self.trained=False
         
+# This methods saves the experience tuple in Replay Memory D
+    def save_experience(self, S, A, R, S_new, done):
+        self.D.save_transition(S, A, R, S_new, done)
 
-    def save_transition(self, state, action, reward, new_state, done):
-        self.memory.save_transition(state, action, reward, new_state, done)
-
-    def epsilon_greedy_action(self, observation):
+    def epsilon_greedy_action(self, state):
         if np.random.random() < self.epsilon:
             action = np.random.choice(self.action_space)
-            #print("Random action taken---------")
         else:
-            state = np.array([observation])
-            actions = self.q_eval.predict(state)
+            state__ = np.array([state])
+            actions = self.Q.predict(state__)
             action = np.argmax(actions)
-            #print("NN action taken---------")
-
         return action
     
     def update_epsilon(self):
@@ -140,54 +158,23 @@ class DQN_Agent():
         
 
     def learn(self):
-        if self.memory.mem_cntr < self.batch_size:
+        if self.D.C_counter < self.B:
             return
-        # sample a batch from the replay memory for network updation
-        # states_ is the observation received from the enviroment once corresponding action
-        # was taken on the state
-        states, actions, rewards, states_, dones = \
-                self.memory.sample_buffer(self.batch_size)
-        '''
-        print("states.........")
-        print(states, states.shape , end="\n\n")
-        print("actions.........")
-        print(actions, actions.shape , end="\n\n")
-        print("rewards.........")
-        print(rewards, rewards.shape , end="\n\n")
-        '''
-        q_eval = self.q_eval.predict(states)
-        #print("q_eval.........")
-        #print(q_eval, q_eval.shape , end="\n\n")
-        
-        q_next = self.q_eval.predict(states_)
 
-        # get initial q_target using predicted values from the network
-        q_target = np.copy(q_eval)
+        S_js, A_js,  R_js,  S_nexts,  done_js = self.D.sample_mini_batch(self.B)
 
-        #print("q_target.........")
-        #print(q_target, q_target.shape , end="\n\n")
+        Q_current = self.Q.predict(S_js)        
+        Q_next = self.Q.predict( S_nexts)
+        Q_Target = np.copy(Q_current) 
         
-        #input()
+        batch_index = np.arange(self.B, dtype=np.int32)
+
+        Q_Target[batch_index, A_js] =  R_js + self.gamma * np.max(Q_next, axis=1)* done_js
         
-        batch_index = np.arange(self.batch_size, dtype=np.int32)
-        # update q_target = reward + gamma * maximum amoung all next predicted states
-        q_target[batch_index, actions] = rewards + \
-                        self.gamma * np.max(q_next, axis=1)*dones
-        
-        #print("q_target.........")
-        #print(q_target, q_target.shape , end="\n\n")
-        #input()
-        cost=self.q_eval.train_on_batch(states, q_target)
-        '''
-        self.q_eval.fit(states, 
-                        q_target,
-                        epochs=5,
-                        batch_size=self.batch_size,
-                        verbose=0)
-        '''
+        loss=self.Q.train_on_batch(S_js, Q_Target)
         
         self.update_epsilon()
-        return cost
+        return loss
 
         
     def train_multiple_episodes(self,num_episodes=500):
@@ -195,21 +182,21 @@ class DQN_Agent():
         for ep in range(num_episodes):  # this can be changed to train_multiple_episodes as a function            
             done = False
             ep_reward = 0
-            observation = self.env.reset()
+            S = self.env.reset()
             ep_steps=0
             
             while not done:
-                action = self.epsilon_greedy_action(observation)
-                observation_, reward, done, info = self.env.step(action)
-                ep_reward += reward
+
+                A = self.epsilon_greedy_action(S)
+                S_new , R, done , _ = self.env.step(A)
+                ep_reward  += R
                 ep_steps+=1
-                self.save_transition(observation, action, reward, observation_, int(done))
-                observation = observation_
-                # make it learn at everytimetamp
+                self.save_experience(S, A, R, S_new , int(done))                
+                S = S_new
+                # Point - In DQN_Agent the learning takes place after every step
                 self.learn()
                
             
-            #self.learn()
             self.book_keeping['episodes']=ep+1
             self.book_keeping['rewards_per_ep'].append(ep_reward)
             mean_reward = np.mean(self.book_keeping['rewards_per_ep'][-100:])
@@ -261,12 +248,12 @@ class DQN_Agent():
         self.save_model(path=model_path)
 
     def save_model(self,path=None):
-        self.q_eval.save(path)
+        self.Q.save(path)
 
 
     def get_trained_model_info(self):
-        #if self.q_eval not None and self.booking_keeping_df not None:
-        return self.q_eval ,self.booking_keeping_df
+        #if self.Q not None and self.booking_keeping_df not None:
+        return self.Q ,self.booking_keeping_df
 
     def load_pre_trained_model_info(self,timestr=None):
         dir_path = os.path.join("DQN_trained_models", self.env_name ,"model_"+timestr)
@@ -284,8 +271,8 @@ class DQN_Agent():
         images_paths = [os.path.join(dir_path, "IMAGES" , f) for f in onlyimgfiles]
         
 
-        self.q_eval = keras.models.load_model(model_path)
-        return self.q_eval , pd.read_csv(file_path, sep='\t') , images_paths
+        self.Q = keras.models.load_model(model_path)
+        return self.Q , pd.read_csv(file_path, sep='\t') , images_paths
         #####
 
     def run_test_instances(self,case_list=None, model_=None):
@@ -295,5 +282,4 @@ class DQN_Agent():
                  case_list=case_list,
                  timestr=self.timestr 
                  ).test_instances_of_env()
-        ###print(test_cases_data,image_paths)
         return test_cases_data,image_paths

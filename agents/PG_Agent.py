@@ -28,7 +28,7 @@ class PG_Agent(object):
         self.env = gym.make(self.env_name)
         self.reproduce_seed=reproduce_seed        
         tf.compat.v1.disable_eager_execution() 
-        tf.python.util.deprecation._PRINT_DEPRECATION_WARNINGS = False
+        #tf.python.util.deprecation._PRINT_DEPRECATION_WARNINGS = False
         if self.reproduce_seed is not None:
             ## GLOBAL SEED ##  
             #print("setting global seed {}".format(self.reproduce_seed))
@@ -246,33 +246,3 @@ class PG_Agent(object):
         return test_cases_data,image_paths
 
 
-
-
-
-
-
-##______________________________________######
-'''
-    def get_stats(self):
-        num_episodes=self.training_end_ep_index+1
-        return num_episodes,self.rewards_per_ep,self.mean_rewards_per_ep,self.steps_per_ep,self.losses   
-    
-    def get_trained_model(self):
-        return self.predict
-    
-    def save_model_weights(self):
-        self.predict.save_weights('./checkpoints/my_checkpoint')
-
-    def load_default_model(self):
-        # Create a new model instance
-        _, model_predict = self.build_policy_network()
-        # Restore the weights
-        model_predict.load_weights('./checkpoints/my_checkpoint')
-        
-        if self.env_name=="CartPole-v1":
-            x = model_predict
-        if self.env_name=='LunarLander-v2':
-            x = model_predict
-        return x
-
-'''

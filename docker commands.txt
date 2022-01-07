@@ -1,7 +1,9 @@
 # docker build the image when you are in our 
-docker build --tag deep_rl:v1.0 .
-docker tag deep_rl:v1.0 riturajsingh2015/deep_rl:v1.0
+#docker build --tag deep_rl:v1.0 .
+#docker tag deep_rl:v1.0 riturajsingh2015/deep_rl:v1.0
 docker push riturajsingh2015/deep_rl:v1.0
+
+docker build --tag riturajsingh2015/deep_rl:v1.0 .
 
 #pulling the image
 docker pull riturajsingh2015/deep_rl:v1.0

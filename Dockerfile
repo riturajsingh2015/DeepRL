@@ -28,3 +28,5 @@ RUN pip install --quiet --no-cache-dir --requirement /home/${NB_USER}/work/requi
 #RUN pip install -r /home/${NB_USER}/requirements.txt
 
 # Reference image :- https://github.com/jianxu305/openai-gym-docker/blob/main/Dockerfile
+
+# https://jupyter-docker-stacks.readthedocs.io/en/latest/using/recipes.html
