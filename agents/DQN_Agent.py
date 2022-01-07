@@ -29,15 +29,14 @@ R=reward
 
 '''
 
-
+# ReplyMemory (C) is used to save the experience tuples
 class ReplayMemory():
-    # this memory is required to save the transitions an later sample
-    # transitions to reduce the network losses
+   
     def __init__(self, max_capacity, state_space):
         self.C = max_capacity
 
         self.C_counter = 0
-
+        # Initialize a dict to save all the experience replated information 
         self.Memory_dict = {
         'states': np.zeros((self.C, state_space),dtype=np.float32),
         'new_states': np.zeros((self.C, state_space),dtype=np.float32),
@@ -46,7 +45,7 @@ class ReplayMemory():
         'terminals': np.zeros(self.C, dtype=np.int32)
              
         }
-        
+    # This functions will save the transitions in the Memory    
     def save_transition(self, S, A, R, S_new, done):
         index = self.C_counter % self.C
         self.Memory_dict['states'][index] = S
@@ -56,6 +55,7 @@ class ReplayMemory():
         self.Memory_dict['terminals'][index] = 1 - int(done)
         self.C_counter += 1
 
+    # This functions samples a mini-batch of size B from the Memory
     def sample_mini_batch(self, B):
         max_mem = min(self.C_counter, self.C)
         batch = np.random.choice(max_mem, B, replace=False)
@@ -69,7 +69,7 @@ class ReplayMemory():
         return S_js, A_js,  R_js,  S_nexts, terminal
 
 
-
+# DQN_Agent class used to create DQN agent related functionalities
 class DQN_Agent():
     def __init__(self, 
                  alpha=0.001, 
@@ -88,7 +88,8 @@ class DQN_Agent():
         #<------------> Env Specifications <------------->        
         self.env_name = env_name
         self.env = gym.make(self.env_name)
-        self.reproduce_seed=reproduce_seed        
+        self.reproduce_seed=reproduce_seed
+        # disable eager execution cause its slows down the training process         
         tf.compat.v1.disable_eager_execution() 
         if self.reproduce_seed is not None:
             ## GLOBAL SEED ##  
@@ -98,7 +99,7 @@ class DQN_Agent():
             ## GLOBAL SEED ##  
         
         
-        
+        #Initialize environment related information        
         self.num_actions = self.env.action_space.n
         self.state_space = self.env.observation_space.shape[0]
         self.action_space = [i for i in range(self.num_actions)]
@@ -111,21 +112,23 @@ class DQN_Agent():
         self.B = B
 
         
-        ##  Replay Memory ## 
+        ##  Initialize a Replay Memory (D) in DQN agent## 
         self.D = ReplayMemory(C, self.state_space)
 
         
-        # Model related stuff
-        self.layer1_size = layer1_size
-        self.layer2_size = layer2_size
-        
+        '''
+        Create and Initialize our Q_network
+        Our Q-Network is intialized with two hidden layers
+        Both the hidden layers have ReLu activations function
+        '''
+
         self.Q = keras.Sequential([
-        keras.layers.Dense(self.layer1_size, activation=tf.nn.relu),
-        keras.layers.Dense(self.layer2_size, activation=tf.nn.relu),
+        keras.layers.Dense(layer1_size, activation=tf.nn.relu),
+        keras.layers.Dense(layer2_size, activation=tf.nn.relu),
         keras.layers.Dense(self.num_actions, activation=None)])
         self.Q.compile(optimizer=keras.optimizers.Adam(learning_rate=alpha), loss=tf.keras.losses.MeanSquaredError())
         
-        ##  book-keeping ## 
+        ##  book-keeping to store agent's training related information## 
         self.book_keeping = {
         'episodes': None,
         'rewards_per_ep': [],
@@ -176,7 +179,7 @@ class DQN_Agent():
         self.update_epsilon()
         return loss
 
-        
+    # This method helps in training the network for a specific number f episodes    
     def train_multiple_episodes(self,num_episodes=500):
 
         for ep in range(num_episodes):  # this can be changed to train_multiple_episodes as a function            
