@@ -90,7 +90,7 @@ class DQN_Agent():
         self.env = gym.make(self.env_name)
         self.reproduce_seed=reproduce_seed
         # disable eager execution cause its slows down the training process         
-        tf.compat.v1.disable_eager_execution() 
+        #tf.compat.v1.disable_eager_execution() 
         if self.reproduce_seed is not None:
             ## GLOBAL SEED ##  
             np.random.seed(self.reproduce_seed)
@@ -147,6 +147,7 @@ class DQN_Agent():
     def save_experience(self, S, A, R, S_new, done):
         self.D.save_transition(S, A, R, S_new, done)
 
+# Method choosen an action based on epsilon greedy strategy
     def epsilon_greedy_action(self, state):
         if np.random.random() < self.epsilon:
             action = np.random.choice(self.action_space)
@@ -159,21 +160,20 @@ class DQN_Agent():
     def update_epsilon(self):
         self.epsilon = self.epsilon - self.eps_dec if self.epsilon > self.eps_min else self.eps_min
         
-
+# Method trains the Q-Network by sample a batch of experiences from D
     def learn(self):
         if self.D.C_counter < self.B:
             return
 
         S_js, A_js,  R_js,  S_nexts,  done_js = self.D.sample_mini_batch(self.B)
 
-        Q_current = self.Q.predict(S_js)        
+        Q_current = self.Q.predict(S_js) 
         Q_next = self.Q.predict( S_nexts)
-        Q_Target = np.copy(Q_current) 
-        
+        Q_Target = np.copy(Q_current)
+        # update the Target Q_values as per our Q_target equation
         batch_index = np.arange(self.B, dtype=np.int32)
-
         Q_Target[batch_index, A_js] =  R_js + self.gamma * np.max(Q_next, axis=1)* done_js
-        
+
         loss=self.Q.train_on_batch(S_js, Q_Target)
         
         self.update_epsilon()
@@ -217,7 +217,7 @@ class DQN_Agent():
             if self.book_keeping['mean_rewards_per_ep'][-1] >= 500 and self.env_name=="CartPole-v1":
                 print("\nMean Reward over last 100 ep more than 500")
                 break
-            if self.book_keeping['mean_rewards_per_ep'][-1] >= 200 and self.env_name=='LunarLander-v2':
+            if self.book_keeping['mean_rewards_per_ep'][-1] >= 200 and self.book_keeping['episodes']>=300 and  self.env_name=='LunarLander-v2':
                 print("\nMean Reward over last 100 ep more than 200")
                 break
         print("\n Agent trained.....")    

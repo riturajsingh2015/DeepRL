@@ -1,34 +1,54 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Dense , Activation, Input
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.optimizers import Adam
-import tensorflow.keras.backend as K
 import os
 import time
 import pandas as pd
 import gym
 from helpers.render_model import *
-#from helpers.plot_util import *
+
+
+
+'''
+*****Notations used *********
+agent's training related hyperparameters 
+Learning rate     - alpha (α), 
+Discount factor   - gamma (γ), 
+policy-network    - pi (π) related 
+Number of Hidden layers in the policy-network = 2
+Number of neurons in layer 1 - layer1_size
+Number of neurons in layer 2 - layer2_size
+
+trajectory        - tau (τ),
+
+
+# agent's transition related 
+S     -   current state
+S_new -   new state
+A     -   action
+R     -   reward
+
+
+'''
+
+
 
 class PG_Agent(object):
     def __init__(self,
                  env_name="CartPole-v1",
                  ALPHA=0.0005,
-                 GAMMA=0.99,
+                 GAMMA=0.98,
                  layer1_size=16, 
                  layer2_size=16,
-                 #fname='reinforce.h5',
+                 sol_th=495,
                  reproduce_seed=None
                 ):
         
         #<------------> Env Specifications <------------->        
         self.env_name = env_name
+        #self.reward_div = 100 if self.env_name=='LunarLander-v2' else 1
         self.env = gym.make(self.env_name)
         self.reproduce_seed=reproduce_seed        
-        tf.compat.v1.disable_eager_execution() 
-        #tf.python.util.deprecation._PRINT_DEPRECATION_WARNINGS = False
         if self.reproduce_seed is not None:
             ## GLOBAL SEED ##  
             #print("setting global seed {}".format(self.reproduce_seed))
@@ -37,27 +57,29 @@ class PG_Agent(object):
             self.env.seed(self.reproduce_seed)
             ## GLOBAL SEED ##  
         
-        self.n_actions = self.env.action_space.n#n_actions
-        self.input_dims = self.env.observation_space.shape[0]#input_dims
-        self.action_space = [i for i in range(self.n_actions)]
+        self.state_space = self.env.observation_space.shape[0]
+        self.action_space = self.env.action_space.n
         
-        
+        self.sol_th = sol_th
         self.gamma = GAMMA
-        self.lr = ALPHA
-        self.G = 0
+        self.optimizer = tf.optimizers.Adam(ALPHA)       
+  
+
+        self.pi = keras.Sequential([
+        keras.layers.Dense(layer1_size, activation='relu', kernel_initializer=keras.initializers.he_normal(),autocast=False),
+        keras.layers.Dense(layer2_size, activation='relu', kernel_initializer=keras.initializers.he_normal()),
+        keras.layers.Dense(self.action_space, activation='softmax')])
         
-        # Model related stuff
-        self.fc1_dims = layer1_size
-        self.fc2_dims = layer2_size
         
 
-        self.policy, self.predict = self.build_policy_network()
-
-        # Memory related
-        self.state_memory = []
-        self.action_memory = []
-        self.reward_memory = []
-
+        # Trajectory related
+        self.tau = {
+        'states': [],
+        'actions': [],
+        'rewards': []
+        }
+                
+        
         ##  book-keeping dict ## 
         self.book_keeping = {
         'episodes': None,
@@ -72,92 +94,82 @@ class PG_Agent(object):
         self.timestr=None
         self.trained=False
         
-        #self.model_file = fname
+
+    def pg_loss(self,aprobs, actions, G):
+        indexes = tf.range(0, tf.shape(aprobs)[0]) * tf.shape(aprobs)[1] + actions
+        responsible_outputs = tf.gather(tf.reshape(aprobs, [-1]), indexes)
+        loss = -tf.reduce_mean(tf.math.log(responsible_outputs) * G)
+        return loss
     
+    def choose_action(self, state):
+        softmax_out = self.pi(state.reshape((1, -1)))
+        selected_action = np.random.choice(self.action_space, p=softmax_out.numpy()[0])
+        return selected_action
 
-    def build_policy_network(self):
-        #tf.compat.v1.disable_eager_execution()
-        input_ = Input(shape=(self.input_dims,))
-        advantages = Input(shape=[1])
-        dense1 = Dense(self.fc1_dims, activation='relu')(input_)
-        dense2 = Dense(self.fc2_dims, activation='relu')(dense1)
-        probs = Dense(self.n_actions, activation='softmax')(dense2)
-
-        # y_true will be target labels "actions" received from the train_on_batch function
-        # y_pred will be the predicted probabilities from the model
-        def custom_loss(y_true, y_pred): 
-            out = K.clip(y_pred, 1e-8, 1-1e-8)
-            log_lik = y_true*K.log(out)  
-
-            return K.sum(-log_lik*advantages)
-
-        policy = Model(inputs=[input_, advantages], outputs=[probs])
-
-        policy.compile(optimizer=Adam(learning_rate=self.lr), loss=custom_loss)
-
-        predict = Model(inputs=[input_], outputs=[probs])
-
-        return policy, predict
-
-    def choose_action(self, observation):
-        state = observation[np.newaxis, :]
-        probabilities = self.predict.predict(state)[0]
-        action = np.random.choice(self.action_space, p=probabilities)
-
-        return action
-
-    def store_transition(self, observation, action, reward):
-        self.state_memory.append(observation)
-        self.action_memory.append(action)
-        self.reward_memory.append(reward)
-
-    def learn(self):
-        state_memory = np.array(self.state_memory)
-        action_memory = np.array(self.action_memory)
-        reward_memory = np.array(self.reward_memory)
-        
-        # one hot encode the actions
-        actions = np.zeros([len(action_memory), self.n_actions])
-        actions[np.arange(len(action_memory)), action_memory] = 1
-        
-        
-        G = np.zeros_like(reward_memory)
-        for t in range(len(reward_memory)):
-            G_sum = 0
-            discount = 1
-            for k in range(t, len(reward_memory)):
-                G_sum += reward_memory[k] * discount
-                discount *= self.gamma
-            G[t] = G_sum
-        mean = np.mean(G)
-        std = np.std(G) if np.std(G) > 0 else 1
-        self.G = (G - mean) / std
+    def update_policy_network(self,states,actions,G):        
+        with tf.GradientTape() as tape:
+            aprobs = self.pi(states)
+            loss = self.pg_loss(aprobs, actions, G)
+        gradients = tape.gradient(loss, self.pi.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.pi.trainable_variables))
+        return loss
             
+
+    def get_discounted_rewards(self,rewards):
+        reward_sum = 0
+        G = []
+        for reward in rewards[::-1]:  # reverse buffer r
+            reward_sum = reward + self.gamma * reward_sum
+            G.append(reward_sum)
+        G.reverse()
+        G = np.array(G)
+
+        # standardise the rewards
+        G -= np.mean(G)
+        G /= np.std(G)
+        return G
+
+
+    def learn(self): 
+        states, actions, rewards = self.tau['states'],self.tau['actions'],self.tau['rewards']
+        G=self.get_discounted_rewards(rewards)
+        loss=self.update_policy_network(np.vstack(states) ,actions,G)
+        return loss
+    
+    def empty_the_trajectory(self):
+        self.tau['states'] = []
+        self.tau['actions'] = []
+        self.tau['rewards'] = []
         
-        cost = self.policy.train_on_batch([state_memory, self.G], actions)  # x=training inputs and y= target outputs
+    def add_experience_to_trajectory(self,S,R,A):
+        self.tau['states'].append(S)                   
+        self.tau['rewards'].append(R)                
+        self.tau['actions'].append(A)         
 
-        self.state_memory = []
-        self.action_memory = []
-        self.reward_memory = []
-
-        return cost
     
     def train_multiple_episodes(self,num_episodes=500):
+        
         for ep in range(num_episodes):  # this can be changed to train_multiple_episodes as a function
-            done = False
             ep_reward = 0
             ep_steps=0
-            observation = self.env.reset()
+            S = self.env.reset()
+            self.empty_the_trajectory()
+            
+            done =False
             while not done:
-                action = self.choose_action(observation)
-                observation_, reward, done, info = self.env.step(action)
-                self.store_transition(observation, action, reward)
-                observation = observation_                
-                ep_reward += reward
+                A = self.choose_action(S)
+                S_new, R, done, _ = self.env.step(A)
+                #store experience in the trajectory - tau
+                self.add_experience_to_trajectory(S,R,A)                
+                #make transition to a new state
+                S = S_new              
+                ep_reward += R
                 ep_steps+=1
+                
+            # make the policy network learn at the end of episode
+            loss=self.learn() 
+                
             
-            
-            loss=self.learn()
             self.book_keeping['episodes']=ep+1
             self.book_keeping['rewards_per_ep'].append(ep_reward)
             mean_reward = np.mean(self.book_keeping['rewards_per_ep'][-100:])
@@ -172,19 +184,19 @@ class PG_Agent(object):
                                                                                 self.book_keeping['mean_rewards_per_ep'][-1],
                                                                                 self.book_keeping['loss'][-1]), end="")
             
-            if self.book_keeping['mean_rewards_per_ep'][-1] >= 500 and self.env_name=="CartPole-v1":
-                print("\nMean Reward over last 100 ep more than 500")
+            if self.book_keeping['mean_rewards_per_ep'][-1] >= self.sol_th and self.env_name=="CartPole-v1":
+                print("\nMean Reward over last 100 ep more than {}".format(self.sol_th))
                 break
-            if self.book_keeping['mean_rewards_per_ep'][-1] >= 200 and self.env_name=='LunarLander-v2':
-                print("\nMean Reward over last 100 ep more than 200")
+            if self.book_keeping['mean_rewards_per_ep'][-1] >= self.sol_th and self.env_name=='LunarLander-v2':
+                print("\nMean Reward over last 100 ep more than {}".format(self.sol_th))
                 break
-        print("\n Agent trained.....")    
+        #print("\n Agent trained.....")    
         self.trained=True
 
 
-        print("\n Saving Model info.....")    
+        #print("\n Saving Model info.....")    
         self.save_training_info()    
-        print("\n {} Problem took {} episodes".format(self.env_name,self.book_keeping['episodes']))
+        #print("\n {} Problem took {} episodes".format(self.env_name,self.book_keeping['episodes']))
         # Get end episode number
 
 
@@ -211,10 +223,11 @@ class PG_Agent(object):
     #    PG_learning_plot(self.book_keeping)
 
     def save_model(self,path=None):
-        self.predict.save_weights(path)
+        self.pi.save(path)
+        print("Model saved")
 
     def get_trained_model_info(self):
-        return self.predict , self.booking_keeping_df
+        return self.pi , self.booking_keeping_df
 
     def load_pre_trained_model_info(self,timestr=None):
         dir_path = os.path.join("PG_trained_models", self.env_name ,"model_"+timestr)

@@ -19,7 +19,7 @@ These two control systems simulation enviroments are offered by _OpenAI gym_ whi
 Deep Reinforcement Learning is a subsection in the field of Machine Learning and Artificial Intelligence.
 In which there is an Agent and an environment. The Agent takes Action on the environment and receives a reward. The Goal of the Agent is to learn from the environment in turn maximizing the rewards.
 
-![Reinforcement Learning](https://h3abionet.github.io/H3ABioNet-ML-glossary/figures/RL.png)
+![Reinforcement Learning](https://drive.google.com/open?id=11o1BqtjqqjYwnBhrko0-Os_1gJIJp3x-&authuser=riturajsingh2015%40gmail.com&usp=drive_fs)
 
 *Fig. 1: This Photo by Unknown Author is licensed under CC BY-SA-NC*
 
@@ -117,12 +117,5 @@ For the implementation of DQN, the agent uses a Q -Network which can be a Neural
 At every timestamp the agent takes an action on the environment based on the epsilon-greedy method and stores and transitions into the replay buffer as described.
 Then it samples a subset of information from this replay memory to train the Q-network inturn reducing the loss function of the network. We repeat this setup for a number of episodes until the agent is sufficiently trained showing an increase in its cumulative rewards.
 
-
-## Reinforce Policy Gradient
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXxXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
-
-## Description about the Repository
-
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
 
 
