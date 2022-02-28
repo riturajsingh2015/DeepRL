@@ -1,3 +1,19 @@
+
+## Docker 
+
+![Docker_Logo](https://raw.githubusercontent.com/docker-library/docs/c350af05d3fac7b5c3f6327ac82fe4d990d8729c/docker/logo.png)
+
+We created a docker image on the docker hub which contains all the completed code the related implementations, one may follow the commands below to pull and spin the container.
+
+* **Note** : The trained models are present in the Docker image once you run the container.
+---------------
+Pull the image  >> docker pull riturajsingh2015/deep_rl:v2.0
+Spin a container >> docker run −d −p 8888:8888  riturajsingh2015/deep_rl:v2.0
+In case you need a token as a password to log in, copy the token from the container’s logs
+
+When the container starts, please open your browser and type localhost:8888 to see Jupyter Interface with notebooks in Experiments folders and agents-implementation in agents folder.
+---------------
+
 # Applications of Deep Reinforcement Learning on Control System Environments
 In this repository we have used two deep reinforcement learning algorithms on two 
 control sytem simulation enviroments offered by openAI gym inorder to compare the performance across amoung the agents and setup some guidelines while dealing with these creating and using these reinforcement learning agents.
@@ -18,11 +34,6 @@ These two control systems simulation enviroments are offered by _OpenAI gym_ whi
 
 Deep Reinforcement Learning is a subsection in the field of Machine Learning and Artificial Intelligence.
 In which there is an Agent and an environment. The Agent takes Action on the environment and receives a reward. The Goal of the Agent is to learn from the environment in turn maximizing the rewards.
-
-![Reinforcement Learning](https://drive.google.com/open?id=11o1BqtjqqjYwnBhrko0-Os_1gJIJp3x-&authuser=riturajsingh2015%40gmail.com&usp=drive_fs)
-
-*Fig. 1: This Photo by Unknown Author is licensed under CC BY-SA-NC*
-
 
 ### Elements of Reinforcement Learning
 
@@ -106,16 +117,6 @@ To Evaluate our experiment we will have the following performance metrics for ou
 * Average Steps to solve the problem
 * Agent‘s Goodness to achieve the target which will Capture agent‘s Behaviour 
     * On multiple test instances of the environment
-
-## Deep Q Network (Working Mechanism)
-
-![DQN_Algo](https://drek4537l1klr.cloudfront.net/zai/Figures/03fig13_alt.jpg)
-
-*Fig. 4: This Photo was taken from manning.com*
-
-For the implementation of DQN, the agent uses a Q -Network which can be a Neural Network with multiple layers and a Replay Memory which stores the transition information consisting of the current state , the action taken , the new state and the reward which we get.
-At every timestamp the agent takes an action on the environment based on the epsilon-greedy method and stores and transitions into the replay buffer as described.
-Then it samples a subset of information from this replay memory to train the Q-network inturn reducing the loss function of the network. We repeat this setup for a number of episodes until the agent is sufficiently trained showing an increase in its cumulative rewards.
 
 
 
