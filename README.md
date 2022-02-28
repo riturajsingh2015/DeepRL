@@ -7,8 +7,16 @@ We created a docker image on the docker hub which contains all the completed cod
 
 * **Note** : The trained models are present in the Docker image once you run the container.
 ---------------
-Pull the image  >> docker pull riturajsingh2015/deep_rl:v2.0
-Spin a container >> docker run −d −p 8888:8888  riturajsingh2015/deep_rl:v2.0
+Pull the image  
+```
+docker pull riturajsingh2015/deep_rl:v2.0
+```
+Spin a container
+
+
+```
+docker run −d −p 8888:8888  riturajsingh2015/deep_rl:v2.0
+```
 In case you need a token as a password to log in, copy the token from the container’s logs
 
 When the container starts, please open your browser and type localhost:8888 to see Jupyter Interface with notebooks in Experiments folders and agents-implementation in agents folder.
