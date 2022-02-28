@@ -7,6 +7,8 @@ import pandas as pd
 import gym
 from helpers.render_model import *
 
+import datetime
+
 
 
 '''
@@ -61,11 +63,17 @@ class PG_Agent(object):
         self.action_space = self.env.action_space.n
         
         self.sol_th = sol_th
+        self.alpha = ALPHA
         self.gamma = GAMMA
-        self.optimizer = tf.optimizers.Adam(ALPHA)       
+        self.layer1_size = layer1_size
+        self.layer2_size = layer2_size
+        
+        
+        self.optimizer = tf.optimizers.Adam(self.alpha)       
   
 
         self.pi = keras.Sequential([
+        keras.Input(shape=(self.state_space,), name="inputs"),
         keras.layers.Dense(layer1_size, activation='relu', kernel_initializer=keras.initializers.he_normal(),autocast=False),
         keras.layers.Dense(layer2_size, activation='relu', kernel_initializer=keras.initializers.he_normal()),
         keras.layers.Dense(self.action_space, activation='softmax')])
@@ -90,9 +98,13 @@ class PG_Agent(object):
         }
 
         self.booking_keeping_df=None
-        self.training_end_ep_index=None
-        self.timestr=None
-        self.trained=False
+        
+        self.dir_path= None
+        self.model_path = None
+        self.book_keeping_file_path = None
+        
+        self.training_time  = None
+        
         
 
     def pg_loss(self,aprobs, actions, G):
@@ -132,9 +144,8 @@ class PG_Agent(object):
 
     def learn(self): 
         states, actions, rewards = self.tau['states'],self.tau['actions'],self.tau['rewards']
-        G=self.get_discounted_rewards(rewards)
-        loss=self.update_policy_network(np.vstack(states) ,actions,G)
-        return loss
+        G=self.get_discounted_rewards(rewards)        
+        return self.update_policy_network(np.vstack(states) ,actions,G).numpy()
     
     def empty_the_trajectory(self):
         self.tau['states'] = []
@@ -144,10 +155,32 @@ class PG_Agent(object):
     def add_experience_to_trajectory(self,S,R,A):
         self.tau['states'].append(S)                   
         self.tau['rewards'].append(R)                
-        self.tau['actions'].append(A)         
+        self.tau['actions'].append(A)   
+        
+    def store_book_keeping(self,ep,ep_reward,ep_steps,loss):
+        self.book_keeping['episodes']=ep+1
+        self.book_keeping['rewards_per_ep'].append(ep_reward)
+        self.book_keeping['mean_rewards_per_ep'].append(np.mean(self.book_keeping['rewards_per_ep'][-100:]))
+        self.book_keeping['steps_per_ep'].append(ep_steps)
+        self.book_keeping['loss'].append(loss)
+    
+    def print_book_keeping_info(self):
+        print("\rEp: {} , Ep_Steps: {} , Ep_Reward : {:.2f} , Avg_Reward : {:.2f} , Loss: {:.2f}".
+              format(self.book_keeping['episodes'],
+                     self.book_keeping['steps_per_ep'][-1],
+                     self.book_keeping['rewards_per_ep'][-1],
+                     self.book_keeping['mean_rewards_per_ep'][-1],
+                     self.book_keeping['loss'][-1]), end="")
+        
+    def is_solved(self):
+        if self.book_keeping['mean_rewards_per_ep'][-1] >= self.sol_th:
+            print("\nMean Reward over last 100 ep more than {}".format(self.sol_th))
+            return True
+        return False    
 
     
     def train_multiple_episodes(self,num_episodes=500):
+        training_start_time = datetime.datetime.now()
         
         for ep in range(num_episodes):  # this can be changed to train_multiple_episodes as a function
             ep_reward = 0
@@ -166,46 +199,33 @@ class PG_Agent(object):
                 ep_reward += R
                 ep_steps+=1
                 
-            # make the policy network learn at the end of episode
-            loss=self.learn() 
+            # make the policy network learn at the end of episode 
+            loss=self.learn()
                 
+            self.store_book_keeping(ep,ep_reward,ep_steps,loss)            
+            self.print_book_keeping_info()
             
-            self.book_keeping['episodes']=ep+1
-            self.book_keeping['rewards_per_ep'].append(ep_reward)
-            mean_reward = np.mean(self.book_keeping['rewards_per_ep'][-100:])
-            self.book_keeping['mean_rewards_per_ep'].append(mean_reward)
-            self.book_keeping['steps_per_ep'].append(ep_steps)
-            self.book_keeping['loss'].append(loss)
-            
-            print("\rEp: {} , Ep_Steps: {} , Ep_Reward : {:.2f} , Avg_Reward : {:.2f} , Loss: {:.2f}".format(
-                                                                                self.book_keeping['episodes'],
-                                                                                self.book_keeping['steps_per_ep'][-1],                                     
-                                                                                self.book_keeping['rewards_per_ep'][-1],
-                                                                                self.book_keeping['mean_rewards_per_ep'][-1],
-                                                                                self.book_keeping['loss'][-1]), end="")
-            
-            if self.book_keeping['mean_rewards_per_ep'][-1] >= self.sol_th and self.env_name=="CartPole-v1":
-                print("\nMean Reward over last 100 ep more than {}".format(self.sol_th))
+            if self.is_solved():
+                training_end_time = datetime.datetime.now()
+                self.training_time= training_end_time-training_start_time
+                self.save_training_info(ep)                
                 break
-            if self.book_keeping['mean_rewards_per_ep'][-1] >= self.sol_th and self.env_name=='LunarLander-v2':
-                print("\nMean Reward over last 100 ep more than {}".format(self.sol_th))
-                break
-        #print("\n Agent trained.....")    
-        self.trained=True
+                
+                
+    def set_paths(self,dir_path):
+        self.dir_path=dir_path
+        self.model_path = os.path.join(self.dir_path, "model.h5")
+        self.book_keeping_file_path = os.path.join(self.dir_path, "book_keeping.csv")
+                
+                
 
-
-        #print("\n Saving Model info.....")    
-        self.save_training_info()    
-        #print("\n {} Problem took {} episodes".format(self.env_name,self.book_keeping['episodes']))
-        # Get end episode number
-
-
-    def save_training_info(self):
-        
-        self.timestr = time.strftime("%Y%m%d-%H%M%S")
-        dir_path = os.path.join("PG_trained_models", self.env_name ,"model_"+self.timestr)
+    def save_training_info(self,ep):        
+        time_stamp = str(self.training_time) #time.strftime("%Y%m%d-%H%M%S")
+        model_name="{}__{}__{}__({}*{})__{}____{}".format(ep,self.alpha,
+                                                            self.gamma,self.layer1_size,self.layer2_size,self.sol_th,time_stamp) 
+        dir_path = os.path.join("..","PG_trained_models", self.env_name ,model_name)
         os.makedirs(dir_path, exist_ok=True)
-        model_path = os.path.join(dir_path, "model.h5")
+        
 
         self.booking_keeping_df = pd.DataFrame({
                     'Rewards': self.book_keeping['rewards_per_ep'],
@@ -214,48 +234,31 @@ class PG_Agent(object):
                     'Steps': self.book_keeping['steps_per_ep']
                     }, 
                     index= np.arange(self.book_keeping['episodes']))
-        file_path = os.path.join(dir_path, "book_keeping.csv")
-        self.booking_keeping_df.to_csv(file_path, sep='\t')                
         
-        self.save_model(path=model_path)
+        self.set_paths(dir_path)        
+        self.save_model_info()
+       
 
-    #def plot_learning_curves(self):
-    #    PG_learning_plot(self.book_keeping)
 
-    def save_model(self,path=None):
-        self.pi.save(path)
-        print("Model saved")
-
-    def get_trained_model_info(self):
-        return self.pi , self.booking_keeping_df
-
-    def load_pre_trained_model_info(self,timestr=None):
-        dir_path = os.path.join("PG_trained_models", self.env_name ,"model_"+timestr)
-        model_path = os.path.join(dir_path, "model.h5")
-
-        file_path = os.path.join(dir_path, "book_keeping.csv")
-
-        # also get the images
-        images_path=os.path.join(dir_path, "IMAGES")
-        images_paths=[]
-        from os import listdir
-        from os.path import isfile, join
+    def save_model_info(self):        
+        self.booking_keeping_df.to_csv(self.book_keeping_file_path, sep='\t')             
+        self.pi.save_weights(self.model_path)
+        print("\n Model Saved at {}".format(self.dir_path))    
         
-        onlyimgfiles = [f for f in listdir(images_path) if isfile(join(images_path, f))]
-        images_paths = [os.path.join(dir_path, "IMAGES" , f) for f in onlyimgfiles]
         
-        _,self.predict=self.build_policy_network()
-        self.predict.load_weights(model_path) #= keras.models.load_model(model_path)
-        return self.predict , pd.read_csv(file_path, sep='\t') , images_paths
+    def load_model_by_dir(self , dir_path=None):
+        self.set_paths(dir_path) 
+        load_status=self.pi.load_weights(self.model_path)
+        return self.pi, pd.read_csv(self.book_keeping_file_path, sep='\t')    
+   
 
 
-    def run_test_instances(self,case_list=None, model_=None):        
+    def run_test_instances(self,case_list=None, model_ref=None):        
         test_cases_data,image_paths= Rendering(env_name=self.env_name,
-                 model=model_,
+                 test_model=model_ref,
                  case_list=case_list,
-                 timestr=self.timestr 
+                 dir_path=self.dir_path
                  ).test_instances_of_env()
-        ###print(test_cases_data,image_paths)
         return test_cases_data,image_paths
 
 
