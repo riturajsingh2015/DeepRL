@@ -1,27 +1,4 @@
 
-## Docker 
-
-![Docker_Logo](https://raw.githubusercontent.com/docker-library/docs/c350af05d3fac7b5c3f6327ac82fe4d990d8729c/docker/logo.png)
-
-We created a docker image on the docker hub which contains all the completed code the related implementations, one may follow the commands below to pull and spin the container.
-
-* **Note** : The trained models are present in the Docker image once you run the container.
----------------
-Pull the image  
-```
-docker pull riturajsingh2015/deep_rl:v2.0
-```
-Spin a container
-
-
-```
-docker run −d −p 8888:8888  riturajsingh2015/deep_rl:v2.0
-```
-In case you need a token as a password to log in, copy the token from the container’s logs
-
-When the container starts, please open your browser and type localhost:8888 to see Jupyter Interface with notebooks in Experiments folders and agents-implementation in agents folder.
----------------
-
 # Applications of Deep Reinforcement Learning on Control System Environments
 In this repository we have used two deep reinforcement learning algorithms on two 
 control sytem simulation enviroments offered by openAI gym inorder to compare the performance across amoung the agents and setup some guidelines while dealing with these creating and using these reinforcement learning agents.
@@ -79,19 +56,6 @@ The goal of problem is to prevent Pole from Falling over
 *Fig. 2: This Photo was taken from oreilly.com*
 
 
-**Environment specifications**
-* Actions space – 2 
-    * Left or Right
-* Observations space – 4
-    * Cart Position
-    * Cart Velocity
-    * Pole Angle
-    * Pole Angular Velocity
-* Reward - 1 points per step
-* Episode Termination
-    * Pole Angle > 15 deg
-    * Episode last more than 500 steps
-
 ### LunarLander-v2
 In the LunarLander-v2 environment there is a vehicle that starts from the top of the screen.
 And there is a Landing pad that is always at coordinates (0,0).The goal of the problem is to  Land the vehicle on the target.
@@ -100,24 +64,7 @@ And there is a Landing pad that is always at coordinates (0,0).The goal of the p
 
 *Fig. 3: This Photo was taken from miro.medium.com*
 
-**Environment specifications**
-* Actions space – 4 
-    * Left or Right or Main Engine or Do Nothing
-* Observations space – 8
-    * x coordinate of the lander
-    * y coordinate of the lander
-    * vx, the horizontal velocity
-    * vy, the vertical velocity
-    * θ, the orientation in space
-    * vθ, the angular velocity
-    * Left leg touching the ground (Boolean)
-    * Right leg touching the ground (Boolean)
 
-* Rewards = 100....140 
-    * Ranging from the top of the  screen to landing pad
-* Episode Termination
-    * If Lander crashes or comes to rest on the landing pad. Receiving an additional -100 or +100 points.
-    * Episode last more than 1000 steps
 
 ### Evalution Criteria for the Experiment
 To Evaluate our experiment we will have the following performance metrics for our Agent consisting of - 
@@ -126,5 +73,28 @@ To Evaluate our experiment we will have the following performance metrics for ou
 * Agent‘s Goodness to achieve the target which will Capture agent‘s Behaviour 
     * On multiple test instances of the environment
 
+
+## Docker 
+
+![Docker_Logo](https://raw.githubusercontent.com/docker-library/docs/c350af05d3fac7b5c3f6327ac82fe4d990d8729c/docker/logo.png)
+
+We created a docker image on the docker hub which contains all the completed code the related implementations, one may follow the commands below to pull and spin the container.
+
+* **Note** : The trained models are present in the Docker image once you run the container.
+
+Pull the image  
+```
+docker pull riturajsingh2015/deep_rl:v2.0
+```
+Spin a container
+```
+docker run −d −p 8888:8888  riturajsingh2015/deep_rl:v2.0
+```
+
+In case you need a token as a password to log in, copy the token from the container’s logs
+When the container starts, please open your browser and type the following to see Jupyter Interface with notebooks in Experiments folders and agents-implementation in agents folder.
+```
+localhost:8888
+```
 
 
